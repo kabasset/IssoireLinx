@@ -263,7 +263,7 @@ public:
       m_help(help)
   {
     if (m_help.length() > 0) {
-      flag(m_help.c_str(), "Print help message");
+      flag(m_help, "Print help message");
       m_help = Help::long_name(m_help);
     }
   }
@@ -272,7 +272,7 @@ public:
    * @brief Declare a positional option.
    */
   template <typename T>
-  void positional(const char* name, const char* description)
+  void positional(const std::string& name, const std::string& description)
   {
     positional(name, po::value<T>()->required(), description);
     m_desc.positional(name, description);
@@ -282,7 +282,7 @@ public:
    * @brief Declare a positional option with default value.
    */
   template <typename T>
-  void positional(const char* name, const char* description, T default_value)
+  void positional(const std::string& name, const std::string& description, T default_value)
   {
     positional(name, po::value<T>()->default_value(default_value), description);
     m_desc.positional(name, description, default_value);
@@ -292,7 +292,7 @@ public:
    * @brief Declare a named option.
    */
   template <typename T>
-  void named(const char* name, const char* description)
+  void named(const std::string& name, const std::string& description)
   {
     named(name, po::value<T>()->required(), description);
     m_desc.named(name, description);
@@ -302,7 +302,7 @@ public:
    * @brief Declare a named option with default value.
    */
   template <typename T>
-  void named(const char* name, const char* description, T default_value)
+  void named(const std::string& name, const std::string& description, T default_value)
   {
     named(name, po::value<T>()->default_value(default_value), description);
     m_desc.named(name, description, default_value);
@@ -325,7 +325,7 @@ public:
   /**
    * @brief Declare a flag option.
    */
-  void flag(const char* name, const char* description)
+  void flag(const std::string& name, const std::string& description)
   {
     named(name, po::value<bool>()->default_value(false)->implicit_value(true), description);
     m_desc.flag(name, description);
@@ -341,7 +341,7 @@ public:
   {
     try {
       po::store(po::command_line_parser(argc, argv).options(m_named).positional(m_positional).run(), m_variables);
-      if (not m_help.empty() && has(m_help.c_str())) {
+      if (not m_help.empty() && has(m_help)) {
         m_desc.to_stream(argv[0]);
         exit(0);
       }
@@ -385,7 +385,7 @@ public:
   /**
    * @brief Check whether a given option is set.
    */
-  bool has(const char* name) const
+  bool has(const std::string& name) const
   {
     try {
       return as<bool>(name); // Throw for non booleans
@@ -400,7 +400,7 @@ public:
    * Throws if the option is not set.
    */
   template <typename T>
-  T as(const char* name) const
+  T as(const std::string& name) const
   {
     return m_variables[name].as<T>();
   }
@@ -410,11 +410,11 @@ private:
   /**
    * @brief Declare a positional option with custom semantics.
    */
-  void positional(const char* name, const po::value_semantic* value, const char* description)
+  void positional(const std::string& name, const po::value_semantic* value, const std::string& description)
   {
-    m_add(name, value, description);
+    m_add(name.c_str(), value, description.c_str());
     const int max_args = value->max_tokens();
-    m_positional.add(name, max_args);
+    m_positional.add(name.c_str(), max_args);
   }
 
   /**
@@ -422,9 +422,9 @@ private:
    * 
    * A short form (1-character) of the option can be provided, separated by a comma.
    */
-  void named(const char* name, const po::value_semantic* value, const char* description)
+  void named(const std::string& name, const po::value_semantic* value, const std::string& description)
   {
-    m_add(name, value, description);
+    m_add(name.c_str(), value, description.c_str());
   }
 
 private:
