@@ -319,7 +319,7 @@ public:
   void implicit(const std::string& name, const std::string& description, T&& default_value, T&& implicit_value)
   {
     named(name, po::value<T>()->default_value(default_value)->implicit_value(implicit_value), description);
-    m_desc.implicit(name, description, default_value);
+    m_desc.implicit(name, description, default_value, implicit_value);
   }
 
   /**
