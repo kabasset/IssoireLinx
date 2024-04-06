@@ -356,6 +356,28 @@ private:
   Indexing m_indexing;
 };
 
+/**
+ * @brief Create a patch translated by a given vector.
+ */
+template <typename T, typename TParent, typename TRegion, bool IsContiguous>
+Patch<T, TParent, TRegion, IsContiguous>
+operator>>(Patch<T, TParent, TRegion, IsContiguous> lhs, const Position<TParent::Dimension>& rhs)
+{
+  lhs >>= rhs;
+  return lhs;
+}
+
+/**
+ * @brief Create a patch translated by the opposite of a given vector.
+ */
+template <typename T, typename TParent, typename TRegion, bool IsContiguous>
+Patch<T, TParent, TRegion, IsContiguous>
+operator<<(Patch<T, TParent, TRegion, IsContiguous> lhs, const Position<TParent::Dimension>& rhs)
+{
+  lhs <<= rhs;
+  return lhs;
+}
+
 /// @cond
 namespace Internal {
 
