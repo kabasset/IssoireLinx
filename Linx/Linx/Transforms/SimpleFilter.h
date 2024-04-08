@@ -192,7 +192,7 @@ private:
   void transform_monolith(const TIn& in, TOut& out) const
   {
     // FIXME accept any region
-    auto patch = in.parent()(window_box<TIn::Dimension>());
+    auto patch = in.parent()(extend<TIn::Dimension>(window_impl()));
     auto out_it = out.begin();
     for (const auto& p : in.domain()) {
       patch >>= p;

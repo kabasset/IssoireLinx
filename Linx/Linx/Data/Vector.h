@@ -142,10 +142,10 @@ Vector<T, M> slice(const Vector<T, N>& vector)
 
 /**
  * @brief Create a vector of higher dimension.
-   * @tparam M The new dimension; cannot be -1
-   * 
-   * The values up to dimension `N` are copied.
-   * Those between dimensions `N` and `M` are taken from the given padding vector.
+ * @tparam M The new dimension; cannot be -1
+ * 
+ * The values up to dimension `N` are copied.
+ * Those between dimensions `N` and `M` are taken from the given padding vector.
  */
 template <Index M, typename T, Index N>
 Vector<T, M> extend(const Vector<T, N>& vector, Vector<T, M> padding = Vector<T, M>::zero())
