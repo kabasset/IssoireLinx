@@ -165,7 +165,37 @@ struct MedianFilter : public KernelMixin<T, TWindow> { // FIXME even and odd spe
 
 /**
  * @ingroup filtering
+ * @brief Minimum filtering kernel.
+ */
+template <typename T, typename TWindow>
+struct MinimumFilter : public KernelMixin<T, TWindow> {
+  using KernelMixin<T, TWindow>::KernelMixin;
+  template <typename TIn>
+  inline T operator()(const TIn& neighbors) const
+  {
+    return *std::min_element(neighbors.begin(), neighbors.end());
+  }
+};
+
+/**
+ * @ingroup filtering
+ * @brief Maximum filtering kernel.
+ */
+template <typename T, typename TWindow>
+struct MaximumFilter : public KernelMixin<T, TWindow> {
+  using KernelMixin<T, TWindow>::KernelMixin;
+  template <typename TIn>
+  inline T operator()(const TIn& neighbors) const
+  {
+    return *std::max_element(neighbors.begin(), neighbors.end());
+  }
+};
+
+/**
+ * @ingroup filtering
  * @brief Binary erosion kernel.
+ * 
+ * This is an optimization of the minimum filter for Booleans.
  */
 template <typename T, typename TWindow>
 struct BinaryErosion : public KernelMixin<T, TWindow> {
@@ -182,6 +212,8 @@ struct BinaryErosion : public KernelMixin<T, TWindow> {
 /**
  * @ingroup filtering
  * @brief Binary dilation kernel.
+ * 
+ * This is an optimization of the maximum filter for Booleans.
  */
 template <typename T, typename TWindow>
 struct BinaryDilation : public KernelMixin<T, TWindow> {
@@ -192,34 +224,6 @@ struct BinaryDilation : public KernelMixin<T, TWindow> {
     return std::any_of(neighbors.begin(), neighbors.end(), [](auto e) {
       return bool(e);
     });
-  }
-};
-
-/**
- * @ingroup filtering
- * @brief Erosion (i.e. min filtering) kernel.
- */
-template <typename T, typename TWindow>
-struct Erosion : public KernelMixin<T, TWindow> {
-  using KernelMixin<T, TWindow>::KernelMixin;
-  template <typename TIn>
-  inline T operator()(const TIn& neighbors) const
-  {
-    return *std::min_element(neighbors.begin(), neighbors.end());
-  }
-};
-
-/**
- * @ingroup filtering
- * @brief Dilation (i.e. max filtering) kernel.
- */
-template <typename T, typename TWindow>
-struct Dilation : public KernelMixin<T, TWindow> {
-  using KernelMixin<T, TWindow>::KernelMixin;
-  template <typename TIn>
-  inline T operator()(const TIn& neighbors) const
-  {
-    return *std::max_element(neighbors.begin(), neighbors.end());
   }
 };
 
@@ -408,61 +412,63 @@ auto laplace_operator(T sign = 1)
 
 /**
  * @ingroup filtering
+ * @brief Make a mean filter with a given structuring element.
  */
 template <typename T, typename TWindow>
-auto mean_filter(TWindow window)
+auto mean_filter(TWindow&& window)
 {
-  return SimpleFilter<MeanFilter<T, TWindow>>(MeanFilter<T, TWindow>(LINX_MOVE(window))); // FIXME separable
+  return SimpleFilter<MeanFilter<T, TWindow>>(MeanFilter<T, TWindow>(LINX_FORWARD(window))); // FIXME separable
 }
 
 /**
  * @ingroup filtering
+ * @brief Make a median filter with a given structuring element.
  */
 template <typename T, typename TWindow>
-auto median_filter(TWindow window)
+auto median_filter(TWindow&& window)
 {
-  return SimpleFilter<MedianFilter<T, TWindow>>(MedianFilter<T, TWindow>(LINX_MOVE(window)));
+  return SimpleFilter<MedianFilter<T, TWindow>>(MedianFilter<T, TWindow>(LINX_FORWARD(window)));
 }
 
 /**
  * @ingroup filtering
+ * @brief Make a minimun filter with a given structuring element.
  */
 template <typename T, typename TWindow>
-auto binary_erosion(TWindow window)
+auto minimum_filter(TWindow&& window)
 {
-  return SimpleFilter<BinaryErosion<T, TWindow>>(BinaryErosion<T, TWindow>(LINX_MOVE(window)));
+  return SimpleFilter<MinimumFilter<T, TWindow>>(MinimumFilter<T, TWindow>(LINX_FORWARD(window)));
 }
 
 /**
  * @ingroup filtering
+ * @brief Make a maximum filter with a given structuring element.
  */
 template <typename T, typename TWindow>
-auto binary_dilation(TWindow window)
+auto maximum_filter(TWindow&& window)
 {
-  return SimpleFilter<BinaryDilation<T, TWindow>>(BinaryDilation<T, TWindow>(LINX_MOVE(window)));
+  return SimpleFilter<MaximumFilter<T, TWindow>>(MaximumFilter<T, TWindow>(LINX_FORWARD(window)));
 }
 
 /**
  * @ingroup filtering
+ * @brief Make a erosion filter with a given structuring element.
  */
 template <typename T, typename TWindow>
-auto erosion(TWindow window)
+auto erosion(TWindow&& window)
 {
-  return SimpleFilter<Erosion<T, TWindow>>(Erosion<T, TWindow>(LINX_MOVE(window)));
+  return SimpleFilter<BinaryErosion<T, TWindow>>(BinaryErosion<T, TWindow>(LINX_FORWARD(window)));
 }
 
 /**
  * @ingroup filtering
+ * @brief Make a dilation filter with a given structuring element.
  */
 template <typename T, typename TWindow>
-auto dilation(TWindow window)
+auto dilation(TWindow&& window)
 {
-  return SimpleFilter<Dilation<T, TWindow>>(Dilation<T, TWindow>(LINX_MOVE(window)));
+  return SimpleFilter<BinaryDilation<T, TWindow>>(BinaryDilation<T, TWindow>(LINX_FORWARD(window)));
 }
-
-// FIXME find better names for morphological operations, e.g.
-// - binary_erosion -> erosion
-// - erosion -> minimum_filter
 
 } // namespace Linx
 

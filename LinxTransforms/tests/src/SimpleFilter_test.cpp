@@ -28,12 +28,16 @@ BOOST_AUTO_TEST_CASE(constant0_3x3_test)
   BOOST_TEST(median_out.container() == median_expected);
 
   auto erode_out = erosion<int>(box) * extra;
+  auto min_out = minimum_filter<int>(box) * extra;
   std::vector<int> erode_expected {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0};
   BOOST_TEST(erode_out.container() == erode_expected);
+  BOOST_TEST(min_out.container() == erode_expected);
 
   auto dilate_out = dilation<int>(box) * extra;
+  auto max_out = maximum_filter<int>(box) * extra;
   std::vector<int> dilate_expected {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
   BOOST_TEST(dilate_out.container() == dilate_expected);
+  BOOST_TEST(max_out.container() == dilate_expected);
 }
 
 BOOST_AUTO_TEST_CASE(pixel_test)
