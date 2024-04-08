@@ -37,7 +37,7 @@ public:
   /**
    * @brief Constructor.
    */
-  explicit Mask(Box<N> box, bool flag = true) : m_box(std::move(box)), m_flags(m_box.shape())
+  explicit Mask(Box<N> box, bool flag = true) : m_box(LINX_MOVE(box)), m_flags(m_box.shape())
   {
     m_flags.fill(flag);
   }
@@ -45,14 +45,25 @@ public:
   /**
    * @brief Constructor.
    */
-  explicit Mask(Position<N> front, Position<N> back, bool flag = true) : Mask({front, back}, flag) {}
+  template <typename TRange, typename std::enable_if_t<IsRange<TRange>::value>* = nullptr>
+  explicit Mask(Box<N> box, const TRange& flags) : m_box(LINX_MOVE(box)), m_flags(m_box.shape())
+  {
+    std::copy(flags.begin(), flags.end(), m_flags.begin());
+  }
+
+  /**
+   * @brief Constructor.
+   */
+  [[deprecated]] explicit Mask(Position<N> front, Position<N> back, bool flag = true) :
+      Mask({LINX_MOVE(front), LINX_MOVE(back)}, flag)
+  {}
 
   /**
    * @brief Create a mask from a radius and center position.
    */
   static Mask<N> from_center(Index radius = 1, const Position<N>& center = Position<N>::zero(), bool flag = true)
   {
-    return Mask<N>(center - radius, center + radius, flag);
+    return Mask<N>({center - radius, center + radius}, flag);
   }
 
   /**
@@ -106,6 +117,14 @@ public:
   Index size() const
   {
     return std::count(m_flags.begin(), m_flags.end(), true);
+  }
+
+  /**
+   * @brief Get the flags.
+   */
+  const Raster<bool, N>& flags() const
+  {
+    return m_flags;
   }
 
   /**
@@ -266,6 +285,16 @@ private:
    */
   Raster<bool, N> m_flags;
 };
+
+/**
+ * @relatesalso Mask
+ * @brief Create a mask of higher dimension.
+ */
+template <Index M, Index N>
+Mask<M> extend(const Mask<N>& in, const Position<M>& padding = Position<M>::zero())
+{
+  return Mask<M>(extend<M>(in.box(), padding), in.flags());
+}
 
 /**
  * @relatesalso Mask
