@@ -11,6 +11,23 @@
 
 namespace Linx {
 
+/// @cond
+namespace Internal {
+
+/**
+ * @brief Test whether a type is a range, i.e. has `begin()` and `end()` methods.
+ */
+template <typename T, typename = void>
+struct KernelShiftsWindow : std::false_type {};
+
+/// @cond
+template <typename T>
+struct KernelShiftsWindow<T, std::void_t<typename T::ShiftsWindow>> : std::true_type {};
+/// @endcond
+
+} // namespace Internal
+/// @endcond
+
 /**
  * @ingroup filtering
  * @brief A structuring element for morphological operations.
@@ -194,11 +211,15 @@ private:
     // FIXME accept any region
     auto patch = in.parent()(extend<TIn::Dimension>(window_impl()));
     auto out_it = out.begin();
-    for (const auto& p : in.domain()) {
-      patch >>= p;
-      *out_it = m_kernel(patch);
+    for (const auto& p : in.domain()) { // FIXME loop over out for a simpler sentinel?
+      if constexpr (Internal::KernelShiftsWindow<TKernel>::value) { // FIXME ugly
+        *out_it = m_kernel(in, patch, p);
+      } else {
+        patch >>= p;
+        *out_it = m_kernel(patch);
+        patch <<= p;
+      }
       ++out_it;
-      patch <<= p;
     }
   }
 

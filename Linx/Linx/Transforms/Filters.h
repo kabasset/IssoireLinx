@@ -199,13 +199,31 @@ struct MaximumFilter : public KernelMixin<T, TWindow> {
  */
 template <typename T, typename TWindow>
 struct BinaryErosion : public KernelMixin<T, TWindow> {
+  /**
+   * @brief Optimization tag: erosion requires no neighborhood around false pixels.
+   */
+  struct ShiftsWindow;
+
   using KernelMixin<T, TWindow>::KernelMixin;
+
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
   {
     return std::all_of(neighbors.begin(), neighbors.end(), [](auto e) {
       return bool(e);
     });
+  }
+
+  template <typename TIn, typename TPatch, typename TPos>
+  inline T operator()(const TIn& in, TPatch& patch, const TPos& pos) const
+  {
+    if (not in[pos]) {
+      return false;
+    }
+    patch >>= pos;
+    auto out = operator()(patch);
+    patch <<= pos;
+    return out;
   }
 };
 
@@ -217,13 +235,31 @@ struct BinaryErosion : public KernelMixin<T, TWindow> {
  */
 template <typename T, typename TWindow>
 struct BinaryDilation : public KernelMixin<T, TWindow> {
+  /**
+   * @brief Optimization tag: dilation requires no neighborhood around true pixels.
+   */
+  struct ShiftsWindow;
+
   using KernelMixin<T, TWindow>::KernelMixin;
+
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
   {
     return std::any_of(neighbors.begin(), neighbors.end(), [](auto e) {
       return bool(e);
     });
+  }
+
+  template <typename TIn, typename TPatch, typename TPos>
+  inline T operator()(const TIn& in, TPatch& patch, const TPos& pos) const
+  {
+    if (in[pos]) {
+      return true;
+    }
+    patch >>= pos;
+    auto out = operator()(patch);
+    patch <<= pos;
+    return out;
   }
 };
 
