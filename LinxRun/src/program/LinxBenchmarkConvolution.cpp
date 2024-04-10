@@ -65,6 +65,9 @@ TDuration filter(Image& image, const Image& kernel, char setup)
     case 'd':
       image = Linx::convolution(kernel) * Linx::extrapolation<Linx::Nearest>(image);
       break;
+    case 's':
+      image = Linx::sparse_convolution(kernel) * Linx::extrapolation<Linx::Nearest>(image);
+      break;
     case 'm':
       filter_monolith(image, kernel);
       break;
@@ -83,18 +86,22 @@ int main(int argc, char const* argv[])
   options.named("case", "Test case: d (default), m (monolith), h (hardcoded)", 'd');
   options.named("image", "Raster length along each axis", 2048L);
   options.named("kernel", "Kernel length along each axis", 5L);
+  options.named("sparse", "Kernel sparsity", 0.);
   options.parse(argc, argv);
   const auto setup = options.as<char>("case");
   const auto image_diameter = options.as<Linx::Index>("image");
   const auto kernel_diameter = options.as<Linx::Index>("kernel");
+  const auto kernel_sparsity = options.as<double>("sparse");
 
   Linx::Position<2> image_shape {image_diameter, image_diameter};
   Linx::Position<2> kernel_shape {kernel_diameter, kernel_diameter};
 
   std::cout << "Generating raster and kernel..." << std::endl;
   auto image = Image(image_shape).range();
-  const auto kernel = Image(kernel_shape).range();
+  const auto mask = Image(kernel_shape).generate(Linx::ImpulseNoise<bool>(true, 1 - kernel_sparsity));
+  const auto kernel = Image(kernel_shape).range() * mask;
   std::cout << "  input: " << image << std::endl;
+  std::cout << "  kernel: " << kernel << " (size: " << Linx::sum(mask) << ")" << std::endl;
 
   std::cout << "Filtering..." << std::endl;
   const auto duration = filter<Duration>(image, kernel, setup);

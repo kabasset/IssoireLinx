@@ -2,10 +2,11 @@
 // This file is part of Linx <github.com/kabasset/Linx>
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef _LINXTRANSFORMS_FILTERLIB_H
-#define _LINXTRANSFORMS_FILTERLIB_H
+#ifndef _LINXTRANSFORMS_FILTERS_H
+#define _LINXTRANSFORMS_FILTERS_H
 
 #include "Linx/Base/TypeUtils.h"
+#include "Linx/Data/Mask.h" // for sparse_*
 #include "Linx/Transforms/FilterAgg.h"
 #include "Linx/Transforms/FilterSeq.h"
 #include "Linx/Transforms/SimpleFilter.h"
@@ -105,7 +106,8 @@ public:
    * @brief Constructor.
    */
   template <typename TRange>
-  Convolution(TWindow window, TRange&& values) : KernelMixin<T, TWindow>(LINX_MOVE(window)), m_values(LINX_MOVE(values))
+  Convolution(TWindow window, const TRange& values) :
+      KernelMixin<T, TWindow>(LINX_MOVE(window)), m_values(values.begin(), values.end())
   {}
 
   /**
@@ -293,7 +295,20 @@ auto convolution(const Raster<T, N, THolder>& values, Position<N> origin)
 template <typename T, Index N, typename THolder>
 auto convolution(const Raster<T, N, THolder>& values)
 {
-  return convolution(values.data(), values.domain() - (values.shape() - 1) / 2);
+  return convolution(values.data(), values.domain() - (values.shape() - 1) / 2); // FIXME implement center(Box)
+}
+
+/**
+ * @ingroup filtering
+ * @brief Make a sparse convolution kernel from a raster, with centered origin.
+ */
+template <typename T, Index N, typename THolder>
+auto sparse_convolution(const Raster<T, N, THolder>& values) // FIXME overloads and correlation
+{
+  auto reversed = values;
+  std::reverse(reversed.begin(), reversed.end());
+  Mask<N> mask(values.domain() - (values.shape() - 1) / 2, reversed); // FIXME offset error?
+  return SimpleFilter<Convolution<T, Mask<N>>>(mask, reversed(mask));
 }
 
 /**
