@@ -478,13 +478,15 @@ Box<Dimensional<N>::OneMoreDimension> insert(const Box<N>& in, Index front, Inde
  * @brief Clamp a position inside a box.
  */
 template <typename T, Index N = 2>
-Vector<T, N> clamp(const Vector<T, N>& position, const Box<N>& box)
+Vector<T, N> clamp(Vector<T, N> position, const Box<N>& box)
 {
-  Vector<T, N> out(box.dimension());
-  for (std::size_t i = 0; i < out.dimension(); ++i) {
-    out[i] = std::clamp(position[i], box.front()[i], box.back()[i]); // TODO transform
-  }
-  return out;
+  position.apply(
+      [](auto p, auto f, auto b) {
+        return std::clamp(p, f, b);
+      },
+      box.front(),
+      box.back());
+  return position;
 }
 
 /**
@@ -492,13 +494,14 @@ Vector<T, N> clamp(const Vector<T, N>& position, const Box<N>& box)
  * @brief Clamp a position inside a shape.
  */
 template <typename T, Index N = 2>
-Vector<T, N> clamp(const Vector<T, N>& position, const Position<N>& shape)
+Vector<T, N> clamp(Vector<T, N> position, const Position<N>& shape)
 {
-  Vector<T, N> out(shape.size());
-  std::transform(position.begin(), position.end(), shape.begin(), out.begin(), [](auto p, auto s) {
-    return std::clamp(p, Index(0), s - 1);
-  });
-  return out;
+  position.apply(
+      [](auto p, auto s) {
+        return std::clamp(p, Index(0), s - 1);
+      },
+      shape);
+  return position;
 }
 
 /**

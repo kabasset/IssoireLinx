@@ -25,7 +25,7 @@ public:
   /**
    * @brief Return the value if out of bounds.
    */
-  template <typename TRaster>
+  template <typename TRaster> // FIXME template <bool MaybeInDomain = true, typename TRaster>
   inline const T& at(TRaster& raster, const Position<TRaster::Dimension>& position) const
   {
     return raster.contains(position) ? raster[position] : m_value;
@@ -56,10 +56,9 @@ struct Nearest {
    * @brief Return the value at the nearest in-bounds position.
    */
   template <typename TRaster>
-  inline const typename TRaster::value_type& at(TRaster& raster, const Position<TRaster::Dimension>& position) const
+  inline const typename TRaster::value_type& at(TRaster& raster, Position<TRaster::Dimension> position) const
   {
-    auto in = clamp(position, raster.shape());
-    return raster[in];
+    return raster[clamp(LINX_MOVE(position), raster.shape())];
   }
 
   /**
@@ -69,9 +68,11 @@ struct Nearest {
   inline T at(TRaster& raster, const Vector<double, TRaster::Dimension>& position) const
   {
     Position<TRaster::Dimension> integral(position.size());
-    std::transform(position.begin(), position.end(), integral.begin(), [](auto e) {
-      return e + .5;
-    });
+    integral.generate(
+        [](auto e) {
+          return e + .5; // FIXME std::round?
+        },
+        position);
     return raster[integral];
   }
 };
@@ -85,17 +86,15 @@ struct Periodic {
    * @brief Return the value at the modulo position.
    */
   template <typename TRaster>
-  inline const typename TRaster::value_type& at(TRaster& raster, const Position<TRaster::Dimension>& position) const
+  inline const typename TRaster::value_type& at(TRaster& raster, Position<TRaster::Dimension> position) const
   {
-    Position<TRaster::Dimension> inbounds(position.size());
-    inbounds.generate(
+    position.apply(
         [](auto p, auto s) {
           auto q = p % s;
           return q < 0 ? q + s : q; // Positive modulo
         },
-        position,
         raster.shape());
-    return raster[inbounds];
+    return raster[position];
   }
 };
 
