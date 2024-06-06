@@ -15,18 +15,18 @@ namespace Cosmics {
  * @brief Pearson correlation coefficient kernel.
 */
 template <typename T, typename TWindow>
-class PearsonCorrelation : public KernelMixin<T, TWindow> {
+class PearsonCorrelation : public KernelMixin<T, TWindow, PearsonCorrelation<T, TWindow>> {
 public:
 
-  template <typename... TArgs>
-  PearsonCorrelation(TWindow window, TArgs&&... args) :
-      KernelMixin<T, TWindow>(LINX_MOVE(window)), m_template(std::forward<TArgs>(args)...), m_sum2()
+  using KernelMixin<T, TWindow, PearsonCorrelation>::KernelMixin;
+
+  void init_impl() // FIXME private
   {
-    const auto mean = std::accumulate(m_template.begin(), m_template.end(), T()) / m_template.size();
-    std::transform(m_template.begin(), m_template.end(), m_template.begin(), [=](auto& e) {
+    const auto mean = std::accumulate(this->m_values.begin(), this->m_values.end(), T()) / this->m_values.size();
+    std::transform(this->m_values.begin(), this->m_values.end(), this->m_values.begin(), [=](auto& e) {
       return e - mean;
     });
-    m_sum2 = std::inner_product(m_template.begin(), m_template.end(), m_template.begin(), T());
+    m_sum2 = std::inner_product(this->m_values.begin(), this->m_values.end(), this->m_values.begin(), T());
   }
 
   template <typename TIn>
@@ -38,12 +38,12 @@ public:
       return e - mean;
     });
     const auto sum2 = std::inner_product(centered.begin(), centered.end(), centered.begin(), T());
-    return std::inner_product(m_template.begin(), m_template.end(), centered.begin(), T()) / std::sqrt(m_sum2 * sum2);
+    return std::inner_product(this->m_values.begin(), this->m_values.end(), centered.begin(), T()) /
+        std::sqrt(m_sum2 * sum2);
   }
 
 private:
 
-  std::vector<T> m_template;
   T m_sum2;
 };
 
@@ -51,20 +51,17 @@ private:
  * @brief Quotient filter, i.e. minimum value of the ratio between neighbors and template, normalized.
 */
 template <typename T, typename TWindow>
-class QuotientFilter : public KernelMixin<T, TWindow> {
+class QuotientFilter : public KernelMixin<T, TWindow, QuotientFilter<T, TWindow>> {
 public:
 
-  template <typename... TArgs>
-  QuotientFilter(TWindow window, TArgs&&... args) :
-      KernelMixin<T, TWindow>(LINX_MOVE(window)), m_template(std::forward<TArgs>(args)...)
-  {}
+  using KernelMixin<T, TWindow, QuotientFilter>::KernelMixin;
 
   template <typename TIn>
   T operator()(const TIn& neighbors) const
   {
     T out = std::numeric_limits<T>::max();
     T norm2 = 0;
-    auto tit = m_template.begin();
+    auto tit = this->m_values.begin();
     for (auto n : neighbors) {
       const auto q = n / *tit;
       norm2 += q * q;
@@ -73,12 +70,10 @@ public:
       }
       ++tit;
     }
-    return out * std::sqrt(m_template.size() / norm2);
+    return out * std::sqrt(this->m_values.size() / norm2);
   }
 
-private:
-
-  std::vector<T> m_template;
+  void init_impl() {} // FIXME private
 };
 
 template <typename TIn, typename TPsf>

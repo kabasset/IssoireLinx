@@ -10,88 +10,34 @@
 #include "Linx/Transforms/FilterAgg.h"
 #include "Linx/Transforms/FilterSeq.h"
 #include "Linx/Transforms/SimpleFilter.h"
+#include "Linx/Transforms/mixins/Kernel.h"
 
 namespace Linx {
-
-/**
- * @brief Base class for kernels.
- */
-template <typename T, typename TWindow>
-class KernelMixin { // FIXME to mixins/
-public:
-
-  /**
-   * @brief The kernel type.
-   */
-  using Value = T;
-
-  /**
-   * @brief The kernel dimension.
-   */
-  static constexpr Index Dimension = TWindow::Dimension;
-
-  /**
-   * @brief The kernel window type.
-  */
-  using Window = TWindow;
-
-  /**
-   * @brief Constructor.
-   */
-  KernelMixin(TWindow window) : m_window(LINX_MOVE(window)) {}
-
-  /**
-   * @brief Get the window.
-   */
-  const TWindow& window() const
-  {
-    return m_window;
-  }
-
-private:
-
-  /**
-   * @brief The window.
-   */
-  TWindow m_window;
-};
 
 /**
  * @ingroup filtering
  * @brief Correlation kernel.
  */
 template <typename T, typename TWindow>
-class Correlation : public KernelMixin<T, TWindow> {
+class Correlation : public KernelMixin<T, TWindow, Correlation<T, TWindow>> {
 public:
 
-  /**
-   * @brief Constructor.
-   */
-  template <typename TRange>
-  Correlation(TWindow window, TRange&& values) : KernelMixin<T, TWindow>(LINX_MOVE(window)), m_values(LINX_MOVE(values))
+  using KernelMixin<T, TWindow, Correlation>::KernelMixin;
+
+  template <typename TIn>
+  inline T operator()(const TIn& neighbors) const
+  {
+    return std::inner_product(this->m_values.begin(), this->m_values.end(), neighbors.begin(), T {});
+  }
+
+  void init_impl() // FIXME private
   {
     if constexpr (is_complex<T>()) {
-      for (auto& e : m_values) {
+      for (auto& e : this->m_values) {
         e = std::conj(e);
       }
     }
   }
-
-  /**
-   * @brief Perform the operation on given neighborhood values.
-   */
-  template <typename TIn>
-  inline T operator()(const TIn& neighbors) const
-  {
-    return std::inner_product(m_values.begin(), m_values.end(), neighbors.begin(), T {});
-  }
-
-private:
-
-  /**
-   * @brief The kernel values.
-   */
-  std::vector<T> m_values;
 };
 
 /**
@@ -99,32 +45,18 @@ private:
  * @brief Convolution kernel.
  */
 template <typename T, typename TWindow>
-class Convolution : public KernelMixin<T, TWindow> {
+class Convolution : public KernelMixin<T, TWindow, Convolution<T, TWindow>> {
 public:
 
-  /**
-   * @brief Constructor.
-   */
-  template <typename TRange>
-  Convolution(TWindow window, const TRange& values) :
-      KernelMixin<T, TWindow>(LINX_MOVE(window)), m_values(values.begin(), values.end())
-  {}
+  using KernelMixin<T, TWindow, Convolution>::KernelMixin;
 
-  /**
-   * @brief Perform the operation on given neighborhood values.
-   */
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
   {
-    return std::inner_product(m_values.rbegin(), m_values.rend(), neighbors.begin(), T {});
+    return std::inner_product(this->m_values.rbegin(), this->m_values.rend(), neighbors.begin(), T {});
   }
 
-private:
-
-  /**
-   * @brief The kernel values.
-   */
-  std::vector<T> m_values;
+  void init_impl() {} // FIXME private
 };
 
 /**
@@ -132,8 +64,8 @@ private:
  * @brief Mean filtering kernel.
  */
 template <typename T, typename TWindow>
-struct MeanFilter : public KernelMixin<T, TWindow> {
-  using KernelMixin<T, TWindow>::KernelMixin;
+struct MeanFilter : public StructuringElementMixin<T, TWindow, MeanFilter<T, TWindow>> {
+  using StructuringElementMixin<T, TWindow, MeanFilter>::StructuringElementMixin;
   template <typename TIn>
   T operator()(const TIn& neighbors) const
   {
@@ -146,8 +78,9 @@ struct MeanFilter : public KernelMixin<T, TWindow> {
  * @brief Median filtering kernel.
  */
 template <typename T, typename TWindow>
-struct MedianFilter : public KernelMixin<T, TWindow> { // FIXME even and odd specializations
-  using KernelMixin<T, TWindow>::KernelMixin;
+struct MedianFilter :
+    public StructuringElementMixin<T, TWindow, MedianFilter<T, TWindow>> { // FIXME even and odd specializations
+  using StructuringElementMixin<T, TWindow, MedianFilter>::StructuringElementMixin;
   template <typename TIn>
   T operator()(const TIn& neighbors) const
   {
@@ -170,8 +103,8 @@ struct MedianFilter : public KernelMixin<T, TWindow> { // FIXME even and odd spe
  * @brief Minimum filtering kernel.
  */
 template <typename T, typename TWindow>
-struct MinimumFilter : public KernelMixin<T, TWindow> {
-  using KernelMixin<T, TWindow>::KernelMixin;
+struct MinimumFilter : public StructuringElementMixin<T, TWindow, MinimumFilter<T, TWindow>> {
+  using StructuringElementMixin<T, TWindow, MinimumFilter>::StructuringElementMixin;
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
   {
@@ -184,8 +117,8 @@ struct MinimumFilter : public KernelMixin<T, TWindow> {
  * @brief Maximum filtering kernel.
  */
 template <typename T, typename TWindow>
-struct MaximumFilter : public KernelMixin<T, TWindow> {
-  using KernelMixin<T, TWindow>::KernelMixin;
+struct MaximumFilter : public StructuringElementMixin<T, TWindow, MaximumFilter<T, TWindow>> {
+  using StructuringElementMixin<T, TWindow, MaximumFilter>::StructuringElementMixin;
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
   {
@@ -200,13 +133,13 @@ struct MaximumFilter : public KernelMixin<T, TWindow> {
  * This is an optimization of the minimum filter for Booleans.
  */
 template <typename T, typename TWindow>
-struct BinaryErosion : public KernelMixin<T, TWindow> {
+struct BinaryErosion : public StructuringElementMixin<T, TWindow, BinaryErosion<T, TWindow>> {
   /**
    * @brief Optimization tag: erosion requires no neighborhood around false pixels.
    */
   struct ShiftsWindow;
 
-  using KernelMixin<T, TWindow>::KernelMixin;
+  using StructuringElementMixin<T, TWindow, BinaryErosion>::StructuringElementMixin;
 
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
@@ -236,13 +169,13 @@ struct BinaryErosion : public KernelMixin<T, TWindow> {
  * This is an optimization of the maximum filter for Booleans.
  */
 template <typename T, typename TWindow>
-struct BinaryDilation : public KernelMixin<T, TWindow> {
+struct BinaryDilation : public StructuringElementMixin<T, TWindow, BinaryDilation<T, TWindow>> {
   /**
    * @brief Optimization tag: dilation requires no neighborhood around true pixels.
    */
   struct ShiftsWindow;
 
-  using KernelMixin<T, TWindow>::KernelMixin;
+  using StructuringElementMixin<T, TWindow, BinaryDilation>::StructuringElementMixin;
 
   template <typename TIn>
   inline T operator()(const TIn& neighbors) const
@@ -391,7 +324,7 @@ auto convolution_along(const std::vector<T>& values)
  * @brief Make a Prewitt gradient filter along given axes.
  * @tparam T The filter output type
  * @tparam IDerivation The derivation axis
- * @tparam IAveraging The possibly multiple averaging axes
+ * @tparam IAveraging The averaging axes
  * @param sign The differentiation sign (-1 or 1)
  * 
  * The convolution kernel along the `IAveraging` axes is `{1, 1, 1}` and that along `IDerivation` is `{sign, 0, -sign}`.
@@ -408,7 +341,7 @@ auto convolution_along(const std::vector<T>& values)
  * @see `scharr_gradient()`
  */
 template <typename T, Index IDerivation, Index... IAveraging>
-auto prewitt_gradient(T sign = 1) // FIXME rename as prewitt_gradient
+auto prewitt_gradient(T sign = 1)
 {
   const auto derivation = convolution_along<T, IDerivation>({sign, 0, -sign});
   const auto averaging = convolution_along<T, IAveraging...>({1, 1, 1});
@@ -425,7 +358,7 @@ auto prewitt_gradient(T sign = 1) // FIXME rename as prewitt_gradient
  * @see `scharr_gradient()`
  */
 template <typename T, Index IDerivation, Index... IAveraging>
-auto sobel_gradient(T sign = 1) // FIXME rename as sobel_gradient
+auto sobel_gradient(T sign = 1)
 {
   const auto derivation = convolution_along<T, IDerivation>({sign, 0, -sign});
   const auto averaging = convolution_along<T, IAveraging...>({1, 2, 1});
@@ -442,7 +375,7 @@ auto sobel_gradient(T sign = 1) // FIXME rename as sobel_gradient
  * @see `sobel_gradient()`
  */
 template <typename T, Index IDerivation, Index... IAveraging>
-auto scharr_gradient(T sign = 1) // FIXME rename as scharr_gradient
+auto scharr_gradient(T sign = 1)
 {
   const auto derivation = convolution_along<T, IDerivation>({sign, 0, -sign});
   const auto averaging = convolution_along<T, IAveraging...>({3, 10, 3});
