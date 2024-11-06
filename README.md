@@ -1,6 +1,6 @@
 # Project Overview
 
-<br/>![Linx logo](doc/diagrams/logo_square.svg)
+An extinct spieces of [Linx](https://github.com/kabasset/Linx).
 
 # Purpose
 
